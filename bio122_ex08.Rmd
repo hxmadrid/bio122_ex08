@@ -1,0 +1,237 @@
+---
+title: 'Exercise 8A: Changes in the Thoracic Activity'
+author: "Espinosa & Madrid"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r}
+
+library(tidyverse)
+library(car)
+library(ggpubr)
+
+```
+
+# 1.DATA
+```{r}
+
+#  imports data into R
+ex08a <- read.csv("C:/Users/Xyrine/Documents/School Stuff/BS BIO 4th Year/1st Semester/BIO 118/Module 1/Module 1 - Laboratory Exercise/bio118-class/exercises/bio122_ex08/data/ex08a.csv")
+
+head(ex08a, head = 5)
+
+#  cleans data
+cav <- ex08a %>%
+  select(!DataSource) %>%
+  drop_na()
+
+
+
+```
+
+
+## 1a. Exploring Data
+```{r}
+
+##  INFLUENCE OF SEX ON CHEST EXPANSION
+#  generates box plot male vs. female tidal insp. and exp.
+sex.t <- ggplot(cav, aes(Sex, a.b)) + geom_boxplot()
+sex.t
+
+#  generates box plot male vs. female forceful insp. and exp. 
+sex.f <- ggplot(cav, aes(Sex, c.d)) + geom_boxplot()
+sex.f 
+
+
+##  DIFFERENCES IN CAVITY CHANGES
+
+#  rearranges data
+thor <- cav %>%
+  select(a.b, c.d, e.d, c.f) %>%
+  gather(Breathe, Cav.Size, a.b, c.d, e.d, c.f) 
+head(thor, n = 5)
+
+#  generates plot
+thor.plot <- ggplot(thor, aes(Breathe, Cav.Size)) + geom_boxplot() +
+  ylab("Thoracic Cavity Size") + xlab("Thoracic Cavity Expansion")
+thor.plot
+
+thor.line <- ggline(thor, x = "Breathe", y = "Cav.Size",
+                    add = c("mean_se", "jitter"),
+                    order = c("a.b", "c.d", "e.d", "c.f"),
+                    ylab = "Change in Cavity Size", xlab = "Breathing")
+
+
+
+## BETWEEN c.f and e.d
+force <- cav %>%
+  select(c.f, e.d) %>% 
+  gather(Breathe, Cav.Size, c.f, e.d) %>%
+  drop_na()
+head(force, head = 5)
+
+## BETWEEN c.d and e.d
+force.b <- cav %>%
+  select(c.d, e.d) %>% 
+  gather(Breathe, Cav.Size, c.d, e.d) %>%
+  drop_na()
+head(force.b, head = 5)
+
+## BETWEEN c.d and c.f
+force.c <- cav %>%
+  select(c.d, c.f) %>% 
+  gather(Breathe, Cav.Size, c.d, c.f) %>%
+  drop_na()
+head(force.c, head = 5)
+
+## BETWEEN a.b and c.d
+force.d <- cav %>%
+  select(a.b, c.d) %>% 
+  gather(Breathe, Cav.Size, a.b, c.d) %>%
+  drop_na()
+head(force.d, head = 5)
+
+## BETWEEN a.b and c.f
+force.e <- cav %>%
+  select(a.b, c.f) %>% 
+  gather(Breathe, Cav.Size, a.b, c.f) %>%
+  drop_na()
+head(force.e, head = 5)
+
+## BETWEEN a.b and e.d
+force.f <- cav %>%
+  select(a.b, e.d) %>% 
+  gather(Breathe, Cav.Size, a.b, e.d) %>%
+  drop_na()
+head(force.f, head = 5)
+```
+
+
+
+
+# 2. T-TEST (Sex influence on chest expansion)
+
+## 2a. Test for normality of distribution 
+```{r}
+
+## Shapiro-Wilk normality Test
+#  Tidal Inspiration and Tidal Expiration
+shapiro.test(cav$a.b[cav$Sex == "F"]) # p = 0.0001968; not normal 
+shapiro.test(cav$a.b[cav$Sex == "M"]) # p = 0.01; not normal
+
+#  Forceful Inspiration and Forceful Expiration
+shapiro.test(cav$c.d[cav$Sex == "F"]) # p = 0.4; normal 
+shapiro.test(cav$c.d[cav$Sex == "M"]) # p = 0.6; normal
+
+
+```
+
+## 2b. Test for homogeneity in variances
+```{r}
+
+## homoscedasticity
+#  a.b
+leveneTest(a.b ~ Sex, cav) # p < 0.05; heteroscedastic
+
+#  c.d
+leveneTest(c.d ~ Sex, cav) # p > 0.05; assume equality of variance
+
+```
+
+## 2c. Non-parametric and parametric T-test
+```{r}
+## Unpaired Two-samples Wilcoxon Test
+# a.b
+sx.tt <- t.test(cav$a.b ~ Sex, data = cav, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+sx.tt #  p > 0.05; accept Ho
+
+sx.wxt <- wilcox.test(cav$a.b ~ Sex, data = cav, 
+                     exact = FALSE)
+sx.wxt    #  p > 0.05; accept Ho
+
+
+# c.d
+sx.tf <- t.test(cav$c.d ~ Sex, data = cav, 
+                   alternative = "two.sided", paired = FALSE, var.equal = TRUE)
+sx.tf #  p > 0.05; accept Ho
+
+sx.wxf <- wilcox.test(cav$c.d ~ Sex, data = cav, 
+                     exact = FALSE)
+sx.wxf    #  p > 0.05; accept Ho
+
+```
+
+
+# 3. ANOVA (Cavity Size)
+
+## 3a. Test for normality of distribution
+```{r}
+
+## Shapiro-Wilk normality Test
+shapiro.test(thor$Cav.Size[thor$Breathe == "a.b"])$p.value # p = 0.00013; not normal 
+shapiro.test(thor$Cav.Size[thor$Breathe == "c.d"])$p.value # p = 0.40; normal
+shapiro.test(thor$Cav.Size[thor$Breathe == "c.f"])$p.value # p = 0.167; normal
+shapiro.test(thor$Cav.Size[thor$Breathe == "e.d"])$p.value # p = 0.072; normal
+
+```
+## 3b. Test for homogeneity in variances
+```{r}
+
+## homoscedasticity
+leveneTest(Cav.Size ~ Breathe, thor) # p < 0.05; assume hetero 
+
+```
+
+
+## 3c. ANOVA and T-test
+```{r}
+
+#  ANOVA
+anov <- aov(Cav.Size ~ Breathe, thor)   ## p = 3.22e-12
+summary(anov) # p < 0.05; reject Ho
+
+#  Kruskal-Wallis test
+kw <- kruskal.test(Cav.Size ~ Breathe, thor)  ## p = 3.842e-12
+kw #  p > 0.05; accept Ho
+
+
+
+# t-test between c.f and e.d
+force.2 <- t.test(Cav.Size ~ Breathe, data = force, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+force.2$p.value #  p > 0.05; accept Ho
+
+# t-test between c.d and e.d
+force.3 <- t.test(Cav.Size ~ Breathe, data = force.b, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+force.3$p.value #  p > 0.05; accept Ho
+
+# t-test between c.d and c.f
+force.4 <- t.test(Cav.Size ~ Breathe, data = force.c, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+force.4$p.value #  p > 0.05; accept Ho
+
+# t-test between a.b and c.d
+force.5 <- t.test(Cav.Size ~ Breathe, data = force.d, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+force.5$p.value #  p < 0.05; reject Ho
+
+# t-test between a.b and c.f
+force.6 <- t.test(Cav.Size ~ Breathe, data = force.e, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+force.6$p.value #  p < 0.05; reject Ho
+
+# t-test between a.b and e.d
+force.7 <- t.test(Cav.Size ~ Breathe, data = force.f, 
+                   alternative = "two.sided", paired = FALSE, var.equal = FALSE)
+force.7$p.value #  p < 0.05; reject Ho
+
+
+
+```
